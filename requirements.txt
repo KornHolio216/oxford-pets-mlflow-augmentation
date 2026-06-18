@@ -1,0 +1,6 @@
+mlflow
+torch
+torchvision
+matplotlib
+numpy
+pillow
