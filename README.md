@@ -88,7 +88,7 @@ The project also saves metric and loss plots as artifacts.
 
 ## Augmentation example
 
-Example of training images after augmentation:
+Example grid of training images after applying the strongest augmentation setup:
 
 ![Augmented training images](docs/images/train_after_augmentation.png)
 
