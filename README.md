@@ -202,7 +202,6 @@ outputs/
 mlflow.db
 __pycache__/
 .idea/
-.idea_old/
 ```
 
 ## Conclusions
