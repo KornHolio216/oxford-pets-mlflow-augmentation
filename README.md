@@ -252,6 +252,18 @@ Run training:
 python main.py
 ```
 
+Run a faster single experiment:
+
+```powershell
+python main.py --run strong_aug_color_rotation_blur --epochs 1 --max-train-samples 200 --max-test-samples 100 --skip-xai
+```
+
+Copy the selected run artifacts to `docs/images` after training:
+
+```powershell
+python main.py --run strong_aug_color_rotation_blur --copy-docs-artifacts
+```
+
 Start MLflow UI:
 
 ```powershell
@@ -277,6 +289,18 @@ oxford-pets-mlflow-augmentation/
 |       |-- metrics_plot.png
 |       |-- loss_plot.png
 |       `-- train_after_augmentation.png
+|-- src/
+|   `-- oxford_pets_mlflow_augmentation/
+|       |-- __init__.py
+|       |-- artifacts.py
+|       |-- cli.py
+|       |-- config.py
+|       |-- data.py
+|       |-- experiment.py
+|       |-- model.py
+|       |-- train.py
+|       |-- utils.py
+|       `-- xai.py
 |-- main.py
 |-- requirements.txt
 |-- README.md
