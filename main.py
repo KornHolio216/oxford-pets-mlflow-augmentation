@@ -189,6 +189,145 @@ def save_prediction_grid(model, test_loader, path, title):
     plt.savefig(path, dpi=180, bbox_inches="tight")
     plt.close()
 
+
+def collect_prediction_results(model, test_loader, max_wrong_examples=8):
+    # zbiera predykcje z calego zbioru testowego do analizy bledow
+    model.eval()
+
+    true_labels = []
+    predicted_labels = []
+    wrong_examples = []
+
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images_device = images.to(DEVICE)
+
+            outputs = model(images_device)
+            probabilities = torch.softmax(outputs, dim=1)
+            confidences, predictions = torch.max(probabilities, dim=1)
+
+            labels_cpu = labels.cpu()
+            predictions_cpu = predictions.cpu()
+            confidences_cpu = confidences.cpu()
+
+            true_labels.extend(labels_cpu.tolist())
+            predicted_labels.extend(predictions_cpu.tolist())
+
+            wrong_indices = torch.where(predictions_cpu != labels_cpu)[0]
+
+            for index in wrong_indices.tolist():
+                if len(wrong_examples) >= max_wrong_examples:
+                    break
+
+                wrong_examples.append(
+                    {
+                        "image": images[index].cpu(),
+                        "true_label": int(labels_cpu[index]),
+                        "predicted_label": int(predictions_cpu[index]),
+                        "confidence": float(confidences_cpu[index]),
+                    }
+                )
+
+    return np.array(true_labels), np.array(predicted_labels), wrong_examples
+
+
+def save_confusion_matrix(true_labels, predicted_labels, path, title):
+    # zapisuje macierz pomylek bez dodatkowych zaleznosci typu scikit-learn
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    class_names = ["cat", "dog"]
+    matrix = np.zeros((len(class_names), len(class_names)), dtype=int)
+
+    for true_label, predicted_label in zip(true_labels, predicted_labels):
+        matrix[int(true_label), int(predicted_label)] += 1
+
+    fig, ax = plt.subplots(figsize=(5, 4))
+    image = ax.imshow(matrix, cmap="Blues")
+
+    ax.set_title(title)
+    ax.set_xlabel("Predicted label")
+    ax.set_ylabel("True label")
+    ax.set_xticks(range(len(class_names)))
+    ax.set_yticks(range(len(class_names)))
+    ax.set_xticklabels(class_names)
+    ax.set_yticklabels(class_names)
+
+    threshold = matrix.max() / 2 if matrix.max() > 0 else 0
+
+    for row in range(matrix.shape[0]):
+        for column in range(matrix.shape[1]):
+            text_color = "white" if matrix[row, column] > threshold else "black"
+            ax.text(
+                column,
+                row,
+                str(matrix[row, column]),
+                ha="center",
+                va="center",
+                color=text_color,
+                fontsize=12,
+            )
+
+    fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    plt.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close()
+
+    return matrix
+
+
+def save_wrong_predictions_grid(wrong_examples, path, title):
+    # zapisuje grid z przykladami blednych predykcji modelu
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if len(wrong_examples) == 0:
+        plt.figure(figsize=(8, 3))
+        plt.text(
+            0.5,
+            0.5,
+            "No wrong predictions found in the evaluated test subset.",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
+        plt.title(title)
+        plt.axis("off")
+        plt.tight_layout()
+        plt.savefig(path, dpi=180, bbox_inches="tight")
+        plt.close()
+        return
+
+    class_names = ["cat", "dog"]
+    columns = min(4, len(wrong_examples))
+    rows = (len(wrong_examples) + columns - 1) // columns
+
+    fig, axes = plt.subplots(rows, columns, figsize=(4 * columns, 4 * rows))
+    axes = np.array(axes).reshape(-1)
+
+    for index, example in enumerate(wrong_examples):
+        image = denormalize_image(example["image"])
+        true_label = class_names[example["true_label"]]
+        predicted_label = class_names[example["predicted_label"]]
+        confidence = example["confidence"]
+
+        axes[index].imshow(image)
+        axes[index].set_title(
+            f"true: {true_label}\n"
+            f"pred: {predicted_label}\n"
+            f"conf: {confidence:.2f}",
+            color="red",
+            fontsize=10,
+        )
+        axes[index].axis("off")
+
+    for axis in axes[len(wrong_examples):]:
+        axis.axis("off")
+
+    plt.suptitle(title)
+    plt.tight_layout()
+    plt.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close()
+
+
 def save_raw_grid(dataset, path, title):
     # zapis siatki przed augmentacja
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -795,6 +934,42 @@ def run_experiment(run_name, train_transform, test_transform):
             str(prediction_grid_path),
             artifact_path="predictions",
         )
+
+        true_labels, predicted_labels, wrong_examples = collect_prediction_results(
+            model,
+            test_loader,
+        )
+
+        evaluation_dir = run_output_dir / "evaluation"
+        confusion_matrix_path = evaluation_dir / "confusion_matrix.png"
+        wrong_predictions_path = evaluation_dir / "wrong_predictions_grid.png"
+
+        confusion_matrix = save_confusion_matrix(
+            true_labels,
+            predicted_labels,
+            confusion_matrix_path,
+            f"Confusion matrix - {run_name}",
+        )
+
+        save_wrong_predictions_grid(
+            wrong_examples,
+            wrong_predictions_path,
+            f"Wrong predictions - {run_name}",
+        )
+
+        mlflow.log_artifact(
+            str(confusion_matrix_path),
+            artifact_path="evaluation",
+        )
+
+        mlflow.log_artifact(
+            str(wrong_predictions_path),
+            artifact_path="evaluation",
+        )
+
+        print(f"Confusion matrix for {run_name}:")
+        print(confusion_matrix)
+        print(f"Wrong prediction examples saved: {len(wrong_examples)}")
 
         explainability_path = run_output_dir / "explainability" / "xai_grid.png"
 

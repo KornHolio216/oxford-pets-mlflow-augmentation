@@ -1,8 +1,21 @@
+<div align="center">
+
 # Oxford Pets MLflow Augmentation
 
-Cat vs dog image classification experiment using **PyTorch**, **MobileNetV3 Small**, **data augmentation**, **MLflow experiment tracking** and **explainable AI**.
+A compact computer vision experiment comparing data augmentation strategies for cat vs dog classification with PyTorch, MobileNetV3 and MLflow.
 
-The project compares how different augmentation strategies affect a binary classifier trained on the Oxford-IIIT Pet dataset. Each augmentation setup is tracked as a separate MLflow run with logged parameters, metrics, plots, image artifacts, explainability maps and the trained model.
+![Python](https://img.shields.io/badge/PYTHON-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PYTORCH-CV-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![TorchVision](https://img.shields.io/badge/TORCHVISION-DATASETS-EE4C2C?style=for-the-badge)
+![MLflow](https://img.shields.io/badge/MLFLOW-TRACKING-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)
+![MobileNetV3](https://img.shields.io/badge/MOBILENETV3-TRANSFER_LEARNING-6A5ACD?style=for-the-badge)
+![Augmentation](https://img.shields.io/badge/DATA-AUGMENTATION-2EA44F?style=for-the-badge)
+![XAI](https://img.shields.io/badge/XAI-CAPTUM-8A2BE2?style=for-the-badge)
+![Dataset](https://img.shields.io/badge/OXFORD_IIIT-PETS-FFB000?style=for-the-badge)
+
+</div>
+
+This project trains a binary cat vs dog classifier on the Oxford-IIIT Pet dataset. It compares baseline, light augmentation and strong augmentation setups, tracks each experiment with MLflow and saves visual artifacts such as prediction grids, training curves and explainability maps.
 
 ## Preview
 
@@ -37,6 +50,7 @@ The experiment tracks:
 - image grids before and after augmentation,
 - test set samples,
 - prediction grids,
+- confusion matrices and wrong prediction grids,
 - explainability maps,
 - trained PyTorch models,
 - comparison of multiple MLflow runs.
@@ -93,6 +107,27 @@ Results after 3 epochs:
 | `baseline_no_aug` | 0.903 | 0.886 | 0.977 | 0.929 | 0.244 |
 
 The best final result was achieved by `strong_aug_color_rotation_blur`. The difference between strong and light augmentation was very small, but both augmentation variants slightly outperformed the baseline in the final epoch.
+
+## Error analysis
+
+The project also saves a confusion matrix and a grid of wrong predictions for each MLflow run. This makes it easier to inspect not only aggregate metrics, but also the concrete cases where the classifier failed.
+
+The examples below come from the best final run, `strong_aug_color_rotation_blur`.
+
+The confusion matrix shows how often cats and dogs were classified correctly or confused with the opposite class.
+
+![Confusion matrix](docs/images/confusion_matrix.png)
+
+The wrong prediction grid shows selected misclassified test images with the true label, predicted label and prediction confidence. It helps inspect whether mistakes come from unclear images, unusual poses, partial visibility or background shortcuts.
+
+![Wrong predictions grid](docs/images/wrong_predictions_grid.png)
+
+## Limitations
+
+- The experiment uses a limited local subset of the dataset: 1,200 training images and 600 test images.
+- Results are reported from a single random seed and should not be treated as a full statistical benchmark.
+- The model is trained for 3 epochs with a frozen MobileNetV3 feature extractor, so it does not compare fine-tuning strategies.
+- Prediction confidence comes from softmax probabilities and should not be interpreted as calibrated certainty.
 
 ## Training curves
 
@@ -165,6 +200,8 @@ Artifacts logged to MLflow:
 - training images after augmentation,
 - test set samples,
 - prediction grid,
+- confusion matrix,
+- wrong predictions grid,
 - explainability grid,
 - loss plot,
 - metrics plot,
@@ -179,6 +216,10 @@ plots/
 
 predictions/
   predictions_grid.png
+
+evaluation/
+  confusion_matrix.png
+  wrong_predictions_grid.png
 
 explainability/
   xai_grid.png
@@ -227,17 +268,19 @@ http://127.0.0.1:5000
 
 ```text
 oxford-pets-mlflow-augmentation/
-├── docs/
-│   └── images/
-│       ├── predictions_grid.png
-│       ├── explainability_xai_grid.png
-│       ├── metrics_plot.png
-│       ├── loss_plot.png
-│       └── train_after_augmentation.png
-├── main.py
-├── requirements.txt
-├── README.md
-└── .gitignore
+|-- docs/
+|   `-- images/
+|       |-- predictions_grid.png
+|       |-- explainability_xai_grid.png
+|       |-- confusion_matrix.png
+|       |-- wrong_predictions_grid.png
+|       |-- metrics_plot.png
+|       |-- loss_plot.png
+|       `-- train_after_augmentation.png
+|-- main.py
+|-- requirements.txt
+|-- README.md
+`-- .gitignore
 ```
 
 The following folders/files should not be committed to GitHub:
